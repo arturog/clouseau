@@ -36,7 +36,8 @@ import org.apache.lucene.search.highlight.{
 import org.apache.lucene.analysis.Analyzer
 import scalang._
 import collection.JavaConversions._
-import com.yammer.metrics.scala._
+import com.codahale.metrics._
+import nl.grons.metrics.scala.InstrumentedBuilder
 import com.cloudant.clouseau.Utils._
 import org.apache.commons.configuration.Configuration
 import org.apache.lucene.facet.sortedset.{
@@ -65,7 +66,8 @@ case class HighlightParameters(highlighter: Highlighter, highlightFields: List[S
 case class TopDocs(updateSeq: Long, totalHits: Long, hits: List[Hit])
 case class Hit(order: List[Any], fields: List[Any])
 
-class IndexService(ctx: ServiceContext[IndexServiceArgs]) extends Service(ctx) with Instrumented {
+class IndexService(ctx: ServiceContext[IndexServiceArgs]) extends Service(ctx) with InstrumentedBuilder {
+  override val metricRegistry = new MetricRegistry()
 
   var reader = DirectoryReader.open(ctx.args.writer, true)
   var updateSeq = getCommittedSeq
