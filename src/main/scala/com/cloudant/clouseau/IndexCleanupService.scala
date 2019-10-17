@@ -13,7 +13,7 @@
 package com.cloudant.clouseau
 
 import com.codahale.metrics._
-import nl.grons.metrics.scala.InstrumentedBuilder
+import nl.grons.metrics4.scala.InstrumentedBuilder
 
 import java.io.File
 import java.util.regex.Pattern
@@ -63,7 +63,7 @@ class IndexCleanupService(ctx: ServiceContext[ConfigurationArgs]) extends Servic
     val m = includePattern.matcher(fileOrDir.getAbsolutePath)
     if (m.find && !activeSigs.contains(m.group(1))) {
       logger.info("Removing unreachable index " + m.group)
-      call('main, ('delete, m.group)) match {
+      call("main", ("delete", m.group)) match {
         case 'ok =>
           'ok
         case ('error, 'not_found) =>

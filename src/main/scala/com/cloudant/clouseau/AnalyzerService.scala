@@ -13,7 +13,7 @@
 package com.cloudant.clouseau
 
 import com.codahale.metrics._
-import nl.grons.metrics.scala.InstrumentedBuilder
+import nl.grons.metrics4.scala.InstrumentedBuilder
 
 import org.apache.log4j.Logger
 import org.apache.lucene.analysis.tokenattributes._

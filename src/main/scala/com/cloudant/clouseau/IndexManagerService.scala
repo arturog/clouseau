@@ -21,8 +21,8 @@ import scala.collection.mutable.Map
 import org.apache.log4j.Logger
 import scalang._
 import com.codahale.metrics._
-import nl.grons.metrics.scala.InstrumentedBuilder
-import scala.collection.JavaConversions._
+import nl.grons.metrics4.scala.InstrumentedBuilder
+import scala.collection.JavaConverters._
 
 class IndexManagerService(ctx: ServiceContext[ConfigurationArgs]) extends Service(ctx) with InstrumentedBuilder {
   override val metricRegistry = new MetricRegistry()
@@ -73,8 +73,8 @@ class IndexManagerService(ctx: ServiceContext[ConfigurationArgs]) extends Servic
     }
 
     def close() {
-      pidToPath foreach {
-        kv => kv._1 ! ('close, 'closing)
+      pidToPath.asScala foreach {
+        kv => kv._1 ! ("close", "closing")
       }
     }
 

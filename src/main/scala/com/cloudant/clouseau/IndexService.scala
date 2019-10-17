@@ -35,9 +35,9 @@ import org.apache.lucene.search.highlight.{
 }
 import org.apache.lucene.analysis.Analyzer
 import scalang._
-import collection.JavaConversions._
+import collection.JavaConverters._
 import com.codahale.metrics._
-import nl.grons.metrics.scala.InstrumentedBuilder
+import nl.grons.metrics4.scala.InstrumentedBuilder
 import com.cloudant.clouseau.Utils._
 import org.apache.commons.configuration.Configuration
 import org.apache.lucene.facet.sortedset.{
@@ -104,7 +104,7 @@ class IndexService(ctx: ServiceContext[IndexServiceArgs]) extends Service(ctx) w
 
   override def handleCall(tag: (Pid, Reference), msg: Any): Any = {
     idle = false
-    send('main, ('touch_lru, ctx.args.name))
+    send("main", ("touch_lru", ctx.args.name))
     internalHandleCall(tag, msg)
   }
 
@@ -233,9 +233,9 @@ class IndexService(ctx: ServiceContext[IndexServiceArgs]) extends Service(ctx) w
       committing = true
       val index = self
       node.spawn((_) => {
-        ctx.args.writer.setCommitData(ctx.args.writer.getCommitData +
+        ctx.args.writer.setCommitData((ctx.args.writer.getCommitData.asScala +
           ("update_seq" -> newUpdateSeq.toString) +
-          ("purge_seq" -> newPurgeSeq.toString))
+          ("purge_seq" -> newPurgeSeq.toString)).asJava)
         try {
           commitTimer.time {
             ctx.args.writer.commit()
@@ -370,9 +370,9 @@ class IndexService(ctx: ServiceContext[IndexServiceArgs]) extends Service(ctx) w
                     }
                   case _ =>
                     throw new ParseException("invalid ranges query")
-                }))
-              }
-              val acc = new RangeAccumulator(rangeFacetRequests)
+                }).asJava)
+              }.asInstanceOf[FacetRequest] // FIXME: Review this forced cast
+              val acc = new RangeAccumulator(rangeFacetRequests.asJava)
               FacetsCollector.create(acc)
             case Some(other) =>
               throw new ParseException(other + " is not a valid ranges query")
@@ -451,9 +451,9 @@ class IndexService(ctx: ServiceContext[IndexServiceArgs]) extends Service(ctx) w
               throw e
         }
         val countFacetRequests = for (count <- counts) yield {
-          new CountFacetRequest(new CategoryPath(count), Int.MaxValue)
+          new CountFacetRequest(new CategoryPath(count), Int.MaxValue).asInstanceOf[FacetRequest]
         }
-        val facetSearchParams = new FacetSearchParams(countFacetRequests)
+        val facetSearchParams = new FacetSearchParams(countFacetRequests.asJava)
         val acc = try {
           new SortedSetDocValuesAccumulator(state, facetSearchParams)
         } catch {
@@ -480,7 +480,7 @@ class IndexService(ctx: ServiceContext[IndexServiceArgs]) extends Service(ctx) w
             case null =>
               ('ok, List())
             case topGroups =>
-              ('ok, topGroups map {
+              ('ok, topGroups.asScala map {
                 g => (g.groupValue, convertOrder(g.sortValues))
               })
           }
@@ -515,7 +515,7 @@ class IndexService(ctx: ServiceContext[IndexServiceArgs]) extends Service(ctx) w
         }
         safeSearch {
           val fieldName = validateGroupField(field)
-          val collector = new TermSecondPassGroupingCollector(fieldName, groups1,
+          val collector = new TermSecondPassGroupingCollector(fieldName, groups1.asJava,
             parseSort(groupSort).rewrite(searcher),
             parseSort(docSort).rewrite(searcher), docLimit, true, false, true)
           searchTimer.time {
@@ -701,10 +701,10 @@ class IndexService(ctx: ServiceContext[IndexServiceArgs]) extends Service(ctx) w
       case null =>
         searcher.doc(scoreDoc.doc)
       case _ =>
-        searcher.doc(scoreDoc.doc, includeFields)
+        searcher.doc(scoreDoc.doc, includeFields.asJava)
     }
 
-    var fields = doc.getFields.foldLeft(Map[String, Any]())((acc, field) => {
+    var fields = doc.getFields.asScala.foldLeft(Map[String, Any]())((acc, field) => {
       val value = field.numericValue match {
         case null =>
           field.stringValue
@@ -763,7 +763,7 @@ class IndexService(ctx: ServiceContext[IndexServiceArgs]) extends Service(ctx) w
         case null => DistanceUtils.EARTH_EQUATORIAL_RADIUS_KM
       }
       val ctx = SpatialContext.GEO
-      val point = ctx.makePoint(lon toDouble, lat toDouble)
+      val point = ctx.makePoint(lon.toDouble, lat.toDouble)
       val degToKm = DistanceUtils.degrees2Dist(1, radius)
       val valueSource = new DistanceValueSource(ctx, fieldLon, fieldLat, degToKm, point)
       valueSource.getSortField(fieldOrder == "-")
@@ -787,7 +787,7 @@ class IndexService(ctx: ServiceContext[IndexServiceArgs]) extends Service(ctx) w
     case null =>
       Nil
     case _ =>
-      List((name, c.getFacetResults.map { f => convertFacet(f) }.toList))
+      List((name, c.getFacetResults.asScala.map { f => convertFacet(f) }.toList))
   }
 
   private def convertFacet(facet: FacetResult): Any = {
@@ -795,7 +795,7 @@ class IndexService(ctx: ServiceContext[IndexServiceArgs]) extends Service(ctx) w
   }
 
   private def convertFacetNode(node: FacetResultNode): Any = {
-    val children = node.subResults.map { n => convertFacetNode(n) }.toList
+    val children = node.subResults.asScala.map { n => convertFacetNode(n) }.toList
     (node.label.components.toList, node.value, children)
   }
 
@@ -817,23 +817,28 @@ class IndexService(ctx: ServiceContext[IndexServiceArgs]) extends Service(ctx) w
           if (fields.length != sortfields.length) {
             throw new ParseException("sort order not compatible with given bookmark")
           }
-          Some(new FieldDoc(ClouseauTypeFactory.toInteger(doc),
-            Float.NaN, (sortfields zip fields) map {
-              case (_, 'null) =>
-                null
-              case (_, str: String) =>
-                Utils.stringToBytesRef(str)
-              case (SortField.FIELD_SCORE, number: java.lang.Double) =>
-                java.lang.Float.valueOf(number.floatValue())
-              case (IndexService.INVERSE_FIELD_SCORE, number: java.lang.Double) =>
-                java.lang.Float.valueOf(number.floatValue())
-              case (SortField.FIELD_DOC, number: java.lang.Double) =>
-                java.lang.Integer.valueOf(number.intValue())
-              case (IndexService.INVERSE_FIELD_DOC, number: java.lang.Double) =>
-                java.lang.Integer.valueOf(number.intValue())
-              case (_, field) =>
-                field
-            } toArray))
+          Some(
+            new FieldDoc(
+              ClouseauTypeFactory.toInteger(doc),
+              Float.NaN,
+              (sortfields zip fields).map {
+                case (_, 'null) =>
+                  null
+                case (_, str: String) =>
+                  Utils.stringToBytesRef(str)
+                case (SortField.FIELD_SCORE, number: java.lang.Double) =>
+                  java.lang.Float.valueOf(number.floatValue())
+                case (IndexService.INVERSE_FIELD_SCORE, number: java.lang.Double) =>
+                  java.lang.Float.valueOf(number.floatValue())
+                case (SortField.FIELD_DOC, number: java.lang.Double) =>
+                  java.lang.Integer.valueOf(number.intValue())
+                case (IndexService.INVERSE_FIELD_DOC, number: java.lang.Double) =>
+                  java.lang.Integer.valueOf(number.intValue())
+                case (_, field) =>
+                  field
+              }.toArray
+            )
+          )
       }
   }
 

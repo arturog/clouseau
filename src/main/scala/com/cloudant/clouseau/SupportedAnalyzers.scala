@@ -16,7 +16,8 @@ import java.util.{ Set => JSet }
 import org.apache.log4j.Logger
 import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.analysis.util.CharArraySet
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
+import scala.language.postfixOps
 
 import org.apache.lucene.analysis.core.KeywordAnalyzer
 import org.apache.lucene.analysis.core.SimpleAnalyzer
@@ -399,11 +400,11 @@ object SupportedAnalyzers {
   }
 
   implicit def listToJavaSet(list: List[String]): JSet[String] = {
-    Set() ++ list
+    (Set() ++ list).asJava
   }
 
   implicit def listToCharArraySet(list: List[String]): CharArraySet = {
-    CharArraySet.unmodifiableSet(CharArraySet.copy(IndexService.version, Set() ++ list))
+    CharArraySet.unmodifiableSet(CharArraySet.copy(IndexService.version, (Set() ++ list).asJava))
   }
 
 }

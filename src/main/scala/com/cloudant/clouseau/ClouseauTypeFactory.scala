@@ -17,7 +17,7 @@ import org.apache.lucene.document.Field._
 import org.apache.lucene.document._
 import org.apache.lucene.search._
 import scala.collection.immutable.Map
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scalang._
 import org.jboss.netty.buffer.ChannelBuffer
 import org.apache.lucene.util.BytesRef
@@ -48,6 +48,10 @@ case class SetPurgeSeqMsg(seq: Long)
 object ClouseauTypeFactory extends TypeFactory {
 
   val logger = Logger.getLogger("clouseau.tf")
+
+  def createType(name: String, arity: Int, reader: TermReader): Option[Any] = {
+    createType(Symbol(name), arity, reader)
+  }
 
   def createType(name: Symbol, arity: Int, reader: TermReader): Option[Any] = (name, arity) match {
     case ('open, 4) =>
@@ -128,7 +132,7 @@ object ClouseauTypeFactory extends TypeFactory {
             val delim = fp.getFacetDelimChar
             if (!name.contains(delim) && !value.contains(delim)) {
               val facets = new SortedSetDocValuesFacetFields(fp)
-              facets.addFields(doc, List(new CategoryPath(name, value)))
+              facets.addFields(doc, List(new CategoryPath(name, value)).asJava)
             }
           }
         case None =>
@@ -183,7 +187,7 @@ object ClouseauTypeFactory extends TypeFactory {
     case v: java.lang.Float => Some(v.doubleValue)
     case v: java.lang.Integer => Some(v.doubleValue)
     case v: java.lang.Long => Some(v.doubleValue)
-    case v: scala.math.BigInt => Some(v.doubleValue())
+    case v: scala.math.BigInt => Some(v.doubleValue)
     case _ => None
   }
 
@@ -203,7 +207,7 @@ object ClouseauTypeFactory extends TypeFactory {
       case false => Store.NO
       case str: String =>
         try {
-          Store.valueOf(str toUpperCase)
+          Store.valueOf(str.toUpperCase)
         } catch {
           case _: IllegalArgumentException =>
             Store.NO
@@ -219,7 +223,7 @@ object ClouseauTypeFactory extends TypeFactory {
       case false => Index.NO
       case str: String =>
         try {
-          Index.valueOf(str toUpperCase)
+          Index.valueOf(str.toUpperCase)
         } catch {
           case _: IllegalArgumentException =>
             Index.ANALYZED
@@ -231,7 +235,7 @@ object ClouseauTypeFactory extends TypeFactory {
 
   def toTermVector(options: Map[String, Any]): TermVector = {
     val termVector = options.getOrElse("termvector", "no").asInstanceOf[String]
-    TermVector.valueOf(termVector toUpperCase)
+    TermVector.valueOf(termVector.toUpperCase)
   }
 
   def isFacet(options: Map[String, Any]) = {
