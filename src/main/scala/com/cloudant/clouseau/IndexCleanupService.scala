@@ -55,7 +55,7 @@ class IndexCleanupService(ctx: ServiceContext[ConfigurationArgs]) extends Servic
 
   private def cleanup(fileOrDir: File, includePattern: Pattern, activeSigs: List[String]) {
     if (!fileOrDir.isDirectory) {
-      return
+      return 'ok
     }
     for (file <- fileOrDir.listFiles) {
       cleanup(file, includePattern, activeSigs)
@@ -63,14 +63,16 @@ class IndexCleanupService(ctx: ServiceContext[ConfigurationArgs]) extends Servic
     val m = includePattern.matcher(fileOrDir.getAbsolutePath)
     if (m.find && !activeSigs.contains(m.group(1))) {
       logger.info("Removing unreachable index " + m.group)
-      call("main", ("delete", m.group)) match {
+      call('main, ('delete, m.group)) match {
         case 'ok =>
           'ok
         case ('error, 'not_found) =>
           recursivelyDelete(fileOrDir)
           fileOrDir.delete
+          'ok
       }
     }
+    'ok
   }
 
   private def recursivelyDelete(fileOrDir: File) {

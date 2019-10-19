@@ -135,16 +135,22 @@ object ClouseauTypeFactory extends TypeFactory {
               facets.addFields(doc, List(new CategoryPath(name, value)).asJava)
             }
           }
+          'ok
         case None =>
           'ok
+        case _ =>
+          'daleks
       }
     case (name: String, value: Boolean, options: List[(String, Any)]) =>
       val map = options.toMap
       constructField(name, value.toString, toStore(map), Index.NOT_ANALYZED, toTermVector(map)) match {
         case Some(field) =>
           doc.add(field)
+          'ok
         case None =>
           'ok
+        case _ =>
+          'daleks
       }
     case (name: String, value: Any, options: List[(String, Any)]) =>
       val map = options.toMap
@@ -154,9 +160,12 @@ object ClouseauTypeFactory extends TypeFactory {
           if (isFacet(map)) {
             doc.add(new DoubleDocValuesField(name, doubleValue))
           }
+          'ok
         case None =>
           logger.warn("Unrecognized value: %s".format(value))
           'ok
+        case _ =>
+          'daleks
       }
   }
 

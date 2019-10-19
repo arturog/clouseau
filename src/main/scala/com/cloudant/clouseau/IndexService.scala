@@ -104,7 +104,7 @@ class IndexService(ctx: ServiceContext[IndexServiceArgs]) extends Service(ctx) w
 
   override def handleCall(tag: (Pid, Reference), msg: Any): Any = {
     idle = false
-    send("main", ("touch_lru", ctx.args.name))
+    send('main, ('touch_lru, ctx.args.name))
     internalHandleCall(tag, msg)
   }
 
@@ -158,7 +158,7 @@ class IndexService(ctx: ServiceContext[IndexServiceArgs]) extends Service(ctx) w
         debug("Forced merge complete.")
       })
     case _ =>
-      'ignored
+      -1
   }
 
   override def handleInfo(msg: Any) = msg match {
@@ -226,6 +226,7 @@ class IndexService(ctx: ServiceContext[IndexServiceArgs]) extends Service(ctx) w
     } finally {
       super.exit(msg)
     }
+    'ok
   }
 
   private def commit(newUpdateSeq: Long, newPurgeSeq: Long) {
